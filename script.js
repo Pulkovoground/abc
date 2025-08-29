@@ -4,23 +4,27 @@ const numbers = "0123456789".split("");
 let currentMode = null;
 let currentIndex = 0;
 let score = 0;
+let checked = false; // состояние — проверил или нет
 
 const card = document.getElementById("card");
 const lettersBtn = document.getElementById("lettersBtn");
 const numbersBtn = document.getElementById("numbersBtn");
-const repeatBtn = document.getElementById("repeatBtn");
+const checkBtn = document.getElementById("checkBtn");
 const scoreDisplay = document.getElementById("score");
 
-// Кнопки
 lettersBtn.addEventListener("click", () => startMode("letters"));
 numbersBtn.addEventListener("click", () => startMode("numbers"));
-repeatBtn.addEventListener("click", repeatItem);
+checkBtn.addEventListener("click", handleCheck);
 
-// Начало режима
+// -------------------
+// Режимы
+// -------------------
 function startMode(mode) {
   currentMode = mode;
   currentIndex = 0;
+  checked = false;
   showItem();
+  checkBtn.textContent = "Проверить";
 }
 
 // Показ карточки
@@ -29,59 +33,54 @@ function showItem() {
   card.textContent = item;
   card.style.transform = "scale(0.8)";
   setTimeout(() => card.style.transform = "scale(1)", 100);
-  speakItem(item);
-  addScore();
-  launchConfetti();
+  checked = false;
+  checkBtn.textContent = "Проверить";
 }
 
+// -------------------
+// Кнопка "Проверить" → "Следующая"
+// -------------------
+function handleCheck() {
+  if (!currentMode) return;
+
+  if (!checked) {
+    // Проверка — включить озвучку
+    const item = currentMode === "letters" ? letters[currentIndex] : numbers[currentIndex];
+    const prefix = currentMode === "letters" ? "Буква " : "Цифра ";
+    speakItem(prefix + item);
+
+    addScore();
+    launchConfetti();
+
+    checked = true;
+    checkBtn.textContent = "Следующая";
+  } else {
+    // Следующая карточка
+    nextItem();
+  }
+}
+
+// Следующая карточка
+function nextItem() {
+  currentIndex = (currentIndex + 1) % (currentMode === "letters" ? letters.length : numbers.length);
+  showItem();
+}
+
+// -------------------
 // Очки
+// -------------------
 function addScore() {
   score += 1;
   scoreDisplay.textContent = `Очки: ${score}`;
 }
 
-// Swipe вверх/вниз
-let touchStartY = 0;
-let touchEndY = 0;
-
-card.addEventListener('touchstart', e => {
-  touchStartY = e.changedTouches[0].screenY;
-});
-
-card.addEventListener('touchend', e => {
-  touchEndY = e.changedTouches[0].screenY;
-  handleGesture();
-});
-
-function handleGesture() {
-  if (touchStartY - touchEndY > 50) nextItem();
-  if (touchEndY - touchStartY > 50) prevItem();
-}
-
-// Переключение карточек
-function nextItem() {
-  if (!currentMode) return;
-  currentIndex = (currentIndex + 1) % (currentMode === "letters" ? letters.length : numbers.length);
-  showItem();
-}
-
-function prevItem() {
-  if (!currentMode) return;
-  currentIndex = (currentIndex - 1 + (currentMode === "letters" ? letters.length : numbers.length)) %
-                  (currentMode === "letters" ? letters.length : numbers.length);
-  showItem();
-}
-
-function repeatItem() {
-  if (!currentMode) return;
-  const item = currentMode === "letters" ? letters[currentIndex] : numbers[currentIndex];
-  speakItem(item);
-}
-
+// -------------------
 // Голосовое воспроизведение
+// -------------------
 function speakItem(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ru-RU";
+  speechSynthesis.cancel(); // сброс, чтобы не накладывалось
   speechSynthesis.speak(utterance);
 }
 
@@ -127,7 +126,6 @@ function animateConfetti() {
 }
 animateConfetti();
 
-// Подгонка canvas при изменении окна
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
